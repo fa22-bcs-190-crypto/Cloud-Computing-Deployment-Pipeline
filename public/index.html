@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Deployment Pipeline - Task Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Cloud Deployment Pipeline</h1>
+            <p>Full-Stack Task Manager | Docker → Azure AKS → GitHub</p>
+        </header>
+
+        <main>
+            <section class="add-task">
+                <h2>Add New Task</h2>
+                <form id="taskForm">
+                    <input type="text" id="taskTitle" placeholder="Task title" required>
+                    <textarea id="taskDescription" placeholder="Task description"></textarea>
+                    <button type="submit">Add Task</button>
+                </form>
+            </section>
+
+            <section class="tasks">
+                <h2>Tasks</h2>
+                <div id="taskList" class="task-list">
+                    <!-- Tasks will be loaded here -->
+                </div>
+            </section>
+
+            <section class="deployment-info">
+                <h2>🔧 Deployment Pipeline Status</h2>
+                <div class="pipeline-stages">
+                    <div class="stage">
+                        <span class="stage-icon">💻</span>
+                        <span>Local Development</span>
+                        <span class="status completed">✅</span>
+                    </div>
+                    <div class="stage">
+                        <span class="stage-icon">🐳</span>
+                        <span>Docker Container</span>
+                        <span class="status" id="dockerStatus">⏳</span>
+                    </div>
+                    <div class="stage">
+                        <span class="stage-icon">☁️</span>
+                        <span>Azure AKS</span>
+                        <span class="status" id="aksStatus">⏳</span>
+                    </div>
+                    <div class="stage">
+                        <span class="stage-icon">📁</span>
+                        <span>GitHub</span>
+                        <span class="status" id="githubStatus">⏳</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Environment: <span id="environment">Loading...</span></p>
+            <p>Health Status: <span id="healthStatus">Checking...</span></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
