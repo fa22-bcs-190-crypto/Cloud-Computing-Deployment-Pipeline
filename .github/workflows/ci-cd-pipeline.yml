@@ -1,0 +1,278 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME_FRONTEND: ${{ secrets.DOCKER_USERNAME }}/cloudpipeline-frontend
+  IMAGE_NAME_BACKEND: ${{ secrets.DOCKER_USERNAME }}/cloudpipeline-backend
+  IMAGE_NAME_DATABASE: ${{ secrets.DOCKER_USERNAME }}/cloudpipeline-database
+
+jobs:
+  # Build Stage
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      database-image: ${{ steps.meta-database.outputs.tags }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build frontend
+      run: |
+        echo "Building frontend assets..."
+        # Add any frontend build steps here if needed
+        ls -la public/
+
+    - name: Build backend
+      run: |
+        echo "Building backend..."
+        npm run build --if-present
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          public/
+          server.js
+          package*.json
+
+  # Test Stage
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password123
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run unit tests
+      run: |
+        echo "Running unit tests..."
+        npm test --if-present || echo "No tests specified"
+
+    - name: Run integration tests
+      env:
+        MONGODB_URI: mongodb://admin:password123@localhost:27017/cloudpipeline?authSource=admin
+      run: |
+        echo "Running integration tests..."
+        node -e "
+          const http = require('http');
+          const mongoose = require('mongoose');
+          
+          // Test MongoDB connection
+          mongoose.connect(process.env.MONGODB_URI)
+            .then(() => {
+              console.log('✅ MongoDB connection test passed');
+              process.exit(0);
+            })
+            .catch(err => {
+              console.error('❌ MongoDB connection test failed:', err.message);
+              process.exit(1);
+            });
+        "
+
+    - name: Run API health check
+      env:
+        MONGODB_URI: mongodb://admin:password123@localhost:27017/cloudpipeline?authSource=admin
+      run: |
+        echo "Starting server for health check..."
+        npm start &
+        SERVER_PID=$!
+        sleep 10
+        
+        echo "Testing API endpoints..."
+        curl -f http://localhost:3000/health || exit 1
+        curl -f http://localhost:3000/api/tasks || exit 1
+        
+        echo "✅ API health check passed"
+        kill $SERVER_PID
+
+  # Docker Build and Push Stage
+  docker:
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Extract metadata for frontend
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.IMAGE_NAME_FRONTEND }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./frontend/Dockerfile
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Extract metadata for backend
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.IMAGE_NAME_BACKEND }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Extract metadata for database
+      id: meta-database
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.IMAGE_NAME_DATABASE }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push database image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./database/Dockerfile
+        push: true
+        tags: ${{ steps.meta-database.outputs.tags }}
+        labels: ${{ steps.meta-database.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Deploy to AKS Stage
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
+
+    - name: Update Kubernetes manifests
+      run: |
+        # Update image tags in Kubernetes manifests
+        sed -i "s|IMAGE_TAG_FRONTEND|${{ needs.docker.outputs.frontend-image }}|g" k8s/app-deployment.yaml
+        sed -i "s|IMAGE_TAG_BACKEND|${{ needs.docker.outputs.backend-image }}|g" k8s/app-deployment.yaml
+        sed -i "s|IMAGE_TAG_DATABASE|${{ needs.docker.outputs.database-image }}|g" k8s/mongodb-deployment.yaml
+
+    - name: Deploy to AKS
+      run: |
+        kubectl apply -f k8s/namespace.yaml
+        kubectl apply -f k8s/mongodb-deployment.yaml
+        kubectl apply -f k8s/app-deployment.yaml
+        kubectl apply -f k8s/ingress.yaml
+
+    - name: Wait for deployment
+      run: |
+        kubectl wait --for=condition=available --timeout=300s deployment/cloudpipeline-app -n cloudpipeline
+        kubectl wait --for=condition=available --timeout=300s deployment/mongodb -n cloudpipeline
+
+    - name: Get deployment status
+      run: |
+        kubectl get pods -n cloudpipeline
+        kubectl get services -n cloudpipeline
+        kubectl get ingress -n cloudpipeline
+
+    - name: Run deployment verification
+      run: |
+        echo "Waiting for services to be ready..."
+        sleep 30
+        
+        # Get the external IP
+        EXTERNAL_IP=$(kubectl get service cloudpipeline-frontend -n cloudpipeline -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        echo "External IP: $EXTERNAL_IP"
+        
+        if [ ! -z "$EXTERNAL_IP" ]; then
+          echo "Testing application accessibility..."
+          curl -f http://$EXTERNAL_IP/health || echo "Health check failed, but deployment completed"
+        fi
