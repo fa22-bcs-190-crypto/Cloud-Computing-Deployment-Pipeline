@@ -1,0 +1,85 @@
+name: Clean CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main ]
+
+jobs:
+  cicd-pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Build Stage
+      run: |
+        echo "=== BUILD STAGE ==="
+        echo "Building frontend..."
+        ls -la public/
+        echo "Building backend..."
+        npm run build
+        echo "✅ Build completed"
+
+    - name: Test Stage
+      run: |
+        echo "=== TEST STAGE ==="
+        echo "Running tests..."
+        npm test
+        echo "✅ Tests completed"
+
+    - name: Docker Build Stage
+      run: |
+        echo "=== DOCKER BUILD STAGE ==="
+        echo "Building Docker images..."
+        docker build -t khaan11/cloudpipeline-frontend:latest -f frontend/Dockerfile .
+        docker build -t khaan11/cloudpipeline-backend:latest -f backend/Dockerfile .
+        docker build -t khaan11/cloudpipeline-database:latest -f database/Dockerfile .
+        echo "✅ Docker images built"
+
+    - name: Docker Push Stage
+      run: |
+        echo "=== DOCKER PUSH STAGE ==="
+        echo "Logging into Docker Hub..."
+        echo "khan123!!" | docker login -u khaan11 --password-stdin
+        
+        echo "Pushing images..."
+        docker push khaan11/cloudpipeline-frontend:latest
+        docker push khaan11/cloudpipeline-backend:latest
+        docker push khaan11/cloudpipeline-database:latest
+        echo "✅ Images pushed to Docker Hub"
+
+    - name: Kubernetes Deploy Stage
+      run: |
+        echo "=== KUBERNETES DEPLOY STAGE ==="
+        echo "Simulating Kubernetes deployment..."
+        echo "Images to deploy:"
+        echo "- khaan11/cloudpipeline-frontend:latest"
+        echo "- khaan11/cloudpipeline-backend:latest"
+        echo "- khaan11/cloudpipeline-database:latest"
+        echo "✅ Kubernetes deployment simulated"
+
+    - name: Success Summary
+      run: |
+        echo "🎉 CI/CD PIPELINE SUCCESS!"
+        echo ""
+        echo "✅ Build Stage: Frontend + Backend"
+        echo "✅ Test Stage: Automated Tests"
+        echo "✅ Docker Stage: Build + Push to Registry"
+        echo "✅ Deploy Stage: Kubernetes Simulation"
+        echo ""
+        echo "🐳 Docker Images:"
+        echo "https://hub.docker.com/r/khaan11/cloudpipeline-frontend"
+        echo "https://hub.docker.com/r/khaan11/cloudpipeline-backend"
+        echo "https://hub.docker.com/r/khaan11/cloudpipeline-database"
+        echo ""
+        echo "📸 TAKE SCREENSHOTS FOR ASSIGNMENT!"
