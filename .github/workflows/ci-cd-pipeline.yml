@@ -8,9 +8,9 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME_FRONTEND: khaan11/cloudpipeline-frontend
-  IMAGE_NAME_BACKEND: khaan11/cloudpipeline-backend
-  IMAGE_NAME_DATABASE: khaan11/cloudpipeline-database
+  IMAGE_NAME_FRONTEND: ${{ secrets.DOCKER_USERNAME }}/cloudpipeline-frontend
+  IMAGE_NAME_BACKEND: ${{ secrets.DOCKER_USERNAME }}/cloudpipeline-backend
+  IMAGE_NAME_DATABASE: ${{ secrets.DOCKER_USERNAME }}/cloudpipeline-database
 
 jobs:
   # Build Stage
