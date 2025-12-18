@@ -59,24 +59,32 @@ jobs:
 
     - name: 🔐 Login to Docker Hub
       run: |
-        echo "${{ env.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin
+        echo "Logging into Docker Hub as khaan11..."
+        echo "khan123!!" | docker login -u "khaan11" --password-stdin
+        echo "✅ Docker Hub login successful"
 
     - name: 🏗️ Build and Push Frontend
       run: |
-        docker build -t ${{ env.DOCKER_USERNAME }}/cloudpipeline-frontend:latest -f frontend/Dockerfile .
-        docker push ${{ env.DOCKER_USERNAME }}/cloudpipeline-frontend:latest
+        echo "Building frontend image..."
+        docker build -t khaan11/cloudpipeline-frontend:latest -f frontend/Dockerfile .
+        echo "Pushing frontend image..."
+        docker push khaan11/cloudpipeline-frontend:latest
         echo "✅ Frontend image pushed successfully"
 
     - name: 🏗️ Build and Push Backend
       run: |
-        docker build -t ${{ env.DOCKER_USERNAME }}/cloudpipeline-backend:latest -f backend/Dockerfile .
-        docker push ${{ env.DOCKER_USERNAME }}/cloudpipeline-backend:latest
+        echo "Building backend image..."
+        docker build -t khaan11/cloudpipeline-backend:latest -f backend/Dockerfile .
+        echo "Pushing backend image..."
+        docker push khaan11/cloudpipeline-backend:latest
         echo "✅ Backend image pushed successfully"
 
     - name: 🏗️ Build and Push Database
       run: |
-        docker build -t ${{ env.DOCKER_USERNAME }}/cloudpipeline-database:latest -f database/Dockerfile .
-        docker push ${{ env.DOCKER_USERNAME }}/cloudpipeline-database:latest
+        echo "Building database image..."
+        docker build -t khaan11/cloudpipeline-database:latest -f database/Dockerfile .
+        echo "Pushing database image..."
+        docker push khaan11/cloudpipeline-database:latest
         echo "✅ Database image pushed successfully"
 
   # Kubernetes Deployment Simulation
@@ -94,9 +102,9 @@ jobs:
         echo "🔧 Updating Kubernetes manifests..."
         
         # Create updated manifests
-        sed "s|IMAGE_TAG_FRONTEND|${{ env.DOCKER_USERNAME }}/cloudpipeline-frontend:latest|g" k8s/app-deployment.yaml > k8s/app-deployment-updated.yaml
-        sed "s|IMAGE_TAG_BACKEND|${{ env.DOCKER_USERNAME }}/cloudpipeline-backend:latest|g" k8s/app-deployment-updated.yaml > k8s/app-deployment-final.yaml
-        sed "s|IMAGE_TAG_DATABASE|${{ env.DOCKER_USERNAME }}/cloudpipeline-database:latest|g" k8s/mongodb-deployment.yaml > k8s/mongodb-deployment-final.yaml
+        sed "s|IMAGE_TAG_FRONTEND|khaan11/cloudpipeline-frontend:latest|g" k8s/app-deployment.yaml > k8s/app-deployment-updated.yaml
+        sed "s|IMAGE_TAG_BACKEND|khaan11/cloudpipeline-backend:latest|g" k8s/app-deployment-updated.yaml > k8s/app-deployment-final.yaml
+        sed "s|IMAGE_TAG_DATABASE|khaan11/cloudpipeline-database:latest|g" k8s/mongodb-deployment.yaml > k8s/mongodb-deployment-final.yaml
         
         echo "✅ Kubernetes manifests updated"
 
@@ -105,9 +113,9 @@ jobs:
         echo "🚀 Simulating Kubernetes deployment..."
         echo "📋 Deployment Configuration:"
         echo "   Namespace: cloudpipeline"
-        echo "   Frontend Image: ${{ env.DOCKER_USERNAME }}/cloudpipeline-frontend:latest"
-        echo "   Backend Image: ${{ env.DOCKER_USERNAME }}/cloudpipeline-backend:latest"
-        echo "   Database Image: ${{ env.DOCKER_USERNAME }}/cloudpipeline-database:latest"
+        echo "   Frontend Image: khaan11/cloudpipeline-frontend:latest"
+        echo "   Backend Image: khaan11/cloudpipeline-backend:latest"
+        echo "   Database Image: khaan11/cloudpipeline-database:latest"
         
         echo ""
         echo "🔄 Kubernetes Commands (Simulation):"
@@ -136,8 +144,8 @@ jobs:
         echo "   ✅ Kubernetes Stage: Deployment simulated"
         echo ""
         echo "🐳 Docker Images Available:"
-        echo "   - https://hub.docker.com/r/${{ env.DOCKER_USERNAME }}/cloudpipeline-frontend"
-        echo "   - https://hub.docker.com/r/${{ env.DOCKER_USERNAME }}/cloudpipeline-backend"
-        echo "   - https://hub.docker.com/r/${{ env.DOCKER_USERNAME }}/cloudpipeline-database"
+        echo "   - https://hub.docker.com/r/khaan11/cloudpipeline-frontend"
+        echo "   - https://hub.docker.com/r/khaan11/cloudpipeline-backend"
+        echo "   - https://hub.docker.com/r/khaan11/cloudpipeline-database"
         echo ""
         echo "🎯 Section B: CI/CD Automation - COMPLETE!"
